@@ -373,13 +373,13 @@ const flattenMembers = (iface) => {
     // Test generation doesn't use constructor arguments, so they aren't copied
     members.push({name: iface.name, type: 'constructor'});
   }
-  if (getExtAttr(iface, 'LegacyFactoryFunction')) {
+  const legacyFactoryFunction = getExtAttr(iface, 'LegacyFactoryFunction');
+  if (legacyFactoryFunction) {
     members.push({
-      name: getExtAttr(iface, 'LegacyFactoryFunction').rhs.value,
+      name: legacyFactoryFunction.rhs.value,
       type: 'constructor'
     });
   }
-
   return members.sort((a, b) => a.name.localeCompare(b.name));
 };
 
@@ -603,6 +603,27 @@ const buildIDLTests = (ast) => {
       exposure: Array.from(exposureSet),
       resources: resources
     });
+
+    const legacyWindowAlias = getExtAttr(iface, 'LegacyWindowAlias');
+    if (legacyWindowAlias) {
+      let aliases = legacyWindowAlias.rhs.value;
+      if (Array.isArray(aliases)) {
+        aliases = aliases.map(token => token.value);
+      } else {
+        aliases = [aliases];
+      }
+      for (const alias of aliases) {
+        tests[`api.${alias}`] = compileTest({
+          raw: {
+            code: {property: alias, owner: 'self'},
+            combinator: '&&'
+          },
+          category: 'api',
+          exposure: ['Window'],
+          resources: resources
+        });
+      }
+    }
 
     const members = flattenMembers(iface);
 
